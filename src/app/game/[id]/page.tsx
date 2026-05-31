@@ -98,7 +98,7 @@ export default function GamePage() {
 
     // ペアチェック後に能力発動確認
     const paired = myPlayer.hand.length - newMyHand.length > 0;
-    if (paired && drawn !== 'joker') {
+    if (paired && (drawn as string) !== 'joker') {
       setPendingAbility(drawn as AbilityType);
     }
 
