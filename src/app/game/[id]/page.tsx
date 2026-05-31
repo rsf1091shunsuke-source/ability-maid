@@ -17,7 +17,18 @@ interface GameState {
   skipped: boolean;
   jokerEffect: string | null;
   deck: CardType[];
+  turnPhase: 'draw_deck' | 'draw_opponent';
 }
+
+const CARD_STYLE = (color: string, bg: string, cursor = 'default') => ({
+  width: 60, height: 80, borderRadius: 10,
+  border: `2px solid ${color}`, background: bg,
+  color: '#fff', fontSize: 11, fontWeight: 700,
+  display: 'flex' as const, alignItems: 'center' as const,
+  justifyContent: 'center' as const, padding: 4,
+  textAlign: 'center' as const, cursor,
+  flexShrink: 0,
+});
 
 export default function GamePage() {
   const { id } = useParams<{ id: string }>();
@@ -26,7 +37,7 @@ export default function GamePage() {
   const [message, setMessage] = useState('');
   const [opponentRevealed, setOpponentRevealed] = useState(false);
   const [pendingAbility, setPendingAbility] = useState<AbilityType | null>(null);
-  const [selectingCard, setSelectingCard] = useState(false);
+  const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
     const uid = localStorage.getItem('abilityMaidUid') || '';
@@ -37,103 +48,123 @@ export default function GamePage() {
     return () => unsub();
   }, [id]);
 
-  if (!game) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh' }}>読み込み中...</div>;
+  if (!game) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh' }}>
+      読み込み中...
+    </div>
+  );
 
   const opponentId = game.playerIds.find(pid => pid !== myId) || '';
   const myPlayer = game.players[myId];
   const opponent = game.players[opponentId];
   const isMyTurn = game.currentTurn === myId;
+  const turnPhase = game.turnPhase || 'draw_deck';
 
-  const showMsg = (msg: string) => {
+  const showMsg = (msg: string, duration = 3000) => {
     setMessage(msg);
-    setTimeout(() => setMessage(''), 3000);
+    setTimeout(() => setMessage(''), duration);
   };
 
-  // ターン終了
-  const endTurn = async (updates: Record<string, unknown>) => {
-    const nextTurn = game.skipped ? myId : opponentId;
-    await updateDoc(doc(db, 'abilityMaidGames', id), {
-      ...updates,
-      currentTurn: nextTurn,
-      skipped: false,
-    });
+  const checkWin = (myHand: CardType[], oppHand: CardType[]) => {
+    if (myHand.length === 0) return { status: 'finished' as const, winner: myId };
+    if (oppHand.length === 0) return { status: 'finished' as const, winner: opponentId };
+    return {};
   };
 
-  // 相手の手札からカードを引く
-  const drawFromOpponent = async (index: number) => {
-    if (!isMyTurn || game.status !== 'playing') return;
-    if (selectingCard) return;
-
-    const opponentHand = [...opponent.hand];
-    const drawn = opponentHand[index];
-    opponentHand.splice(index, 1);
-
-    let newMyHand = removePairs([...myPlayer.hand, drawn]);
-
-    // ジョーカーを引いた場合
-    if (drawn === 'joker') {
-      showMsg('🃏 ジョーカーを引いた！次のターン開始時に特殊効果発動！');
-      await endTurn({
-        [`players.${myId}.hand`]: newMyHand,
-        [`players.${opponentId}.hand`]: opponentHand,
-        jokerEffect: myId,
-        ...checkWin(newMyHand, opponentHand, myId, opponentId),
-      });
+  // 山札から引く
+  const drawFromDeck = async () => {
+    if (!isMyTurn || turnPhase !== 'draw_deck' || processing) return;
+    if (game.deck.length === 0) {
+      await updateDoc(doc(db, 'abilityMaidGames', id), { turnPhase: 'draw_opponent' });
       return;
     }
+    setProcessing(true);
+    const drawn = game.deck[0];
+    const newDeck = game.deck.slice(1);
+    const newMyHand = removePairs([...myPlayer.hand, drawn]);
+    const gained = myPlayer.hand.length + 1 - newMyHand.length;
 
-    showMsg(`${ABILITY_INFO[drawn as AbilityType]?.name ?? drawn} を引きました！`);
+    showMsg(`山札から ${drawn === 'joker' ? '🃏 ジョーカー' : ABILITY_INFO[drawn as AbilityType]?.name} を引いた！`);
 
     // 3枚揃いチェック
     const triple = checkTriple(newMyHand);
     if (triple) {
-      showMsg(`⚡ ${ABILITY_INFO[triple].name} が3枚揃った！強力効果発動！`);
-      newMyHand = newMyHand.filter((_, i) => {
-        const idx = newMyHand.indexOf(triple);
-        return i !== idx;
-      }).filter(c => c !== triple);
-      await applyTripleAbility(triple, newMyHand, opponentHand);
+      showMsg(`⚡ ${ABILITY_INFO[triple].name} が3枚揃った！`);
+      const removed = newMyHand.filter(c => c !== triple);
+      await updateDoc(doc(db, 'abilityMaidGames', id), {
+        [`players.${myId}.hand`]: removed,
+        deck: newDeck,
+        turnPhase: 'draw_opponent',
+        ...checkWin(removed, opponent.hand),
+      });
+      setProcessing(false);
       return;
     }
 
-    // ペアチェック後に能力発動確認
-    const paired = myPlayer.hand.length - newMyHand.length > 0;
-    if (paired && (drawn as string) !== 'joker') {
+    // ペアで能力発動
+    if (gained >= 2 && drawn !== 'joker') {
       setPendingAbility(drawn as AbilityType);
     }
 
-    await endTurn({
+    await updateDoc(doc(db, 'abilityMaidGames', id), {
       [`players.${myId}.hand`]: newMyHand,
-      [`players.${opponentId}.hand`]: opponentHand,
-      ...checkWin(newMyHand, opponentHand, myId, opponentId),
+      deck: newDeck,
+      turnPhase: 'draw_opponent',
+      ...checkWin(newMyHand, opponent.hand),
     });
+    setProcessing(false);
   };
 
-  // 勝敗チェック
-  const checkWin = (myHand: CardType[], oppHand: CardType[], myUid: string, oppUid: string) => {
-    if (myHand.length === 0) return { status: 'finished', winner: myUid };
-    if (oppHand.length === 0) return { status: 'finished', winner: oppUid };
-    return {};
-  };
+  // 相手から引く
+  const drawFromOpponent = async (index: number) => {
+    if (!isMyTurn || turnPhase !== 'draw_opponent' || processing || pendingAbility) return;
+    setProcessing(true);
 
-  // 3枚能力発動
-  const applyTripleAbility = async (ability: AbilityType, myHand: CardType[], oppHand: CardType[]) => {
-    if (ability === 'reveal') {
-      setOpponentRevealed(true);
-      setTimeout(() => setOpponentRevealed(false), 10000);
-      await endTurn({ [`players.${myId}.hand`]: myHand, [`players.${opponentId}.hand`]: oppHand });
-    } else if (ability === 'reset') {
-      const newDeck = shuffle([...oppHand]);
-      const newOppHand = newDeck.slice(0, 5);
-      await endTurn({
-        [`players.${myId}.hand`]: myHand,
-        [`players.${opponentId}.hand`]: newOppHand,
-        deck: newDeck.slice(5),
-      });
+    const actualCard = opponent.hand[index];
+    const newOpponentHand = shuffle(opponent.hand.filter((_, i) => i !== index));
+    const newMyHand = removePairs([...myPlayer.hand, actualCard]);
+    const gained = myPlayer.hand.length + 1 - newMyHand.length;
+
+    if (actualCard === 'joker') {
+      showMsg('🃏 ジョーカーを引いた！次のターン強力効果発動！');
+    } else {
+      showMsg(`${ABILITY_INFO[actualCard as AbilityType]?.name} を引いた！`);
     }
+
+    await new Promise(r => setTimeout(r, 1500));
+
+    // 3枚揃いチェック
+    const triple = checkTriple(newMyHand);
+    if (triple) {
+      showMsg(`⚡ ${ABILITY_INFO[triple].name} が3枚揃った！`);
+      const removed = newMyHand.filter(c => c !== triple);
+      await updateDoc(doc(db, 'abilityMaidGames', id), {
+        [`players.${myId}.hand`]: removed,
+        [`players.${opponentId}.hand`]: newOpponentHand,
+        currentTurn: opponentId,
+        turnPhase: 'draw_deck',
+        ...checkWin(removed, newOpponentHand),
+      });
+      setProcessing(false);
+      return;
+    }
+
+    // ペアで能力発動
+    if (gained >= 2 && actualCard !== 'joker') {
+      setPendingAbility(actualCard as AbilityType);
+    }
+
+    await updateDoc(doc(db, 'abilityMaidGames', id), {
+      [`players.${myId}.hand`]: newMyHand,
+      [`players.${opponentId}.hand`]: newOpponentHand,
+      currentTurn: opponentId,
+      turnPhase: 'draw_deck',
+      ...checkWin(newMyHand, newOpponentHand),
+    });
+    setProcessing(false);
   };
 
-  // 2枚能力発動
+  // 能力発動
   const useAbility = async (ability: AbilityType) => {
     if (!myPlayer || !opponent) return;
     const myHand = [...myPlayer.hand];
@@ -145,8 +176,14 @@ export default function GamePage() {
         setTimeout(() => setOpponentRevealed(false), 3000);
         showMsg('👁 相手の手札を3秒間見る！');
         break;
+      case 'steal':
+        showMsg('💰 強奪！相手の手札から1枚選んでください');
+        break;
       case 'skip':
-        await updateDoc(doc(db, 'abilityMaidGames', id), { skipped: true });
+        await updateDoc(doc(db, 'abilityMaidGames', id), {
+          currentTurn: myId,
+          turnPhase: 'draw_deck',
+        });
         showMsg('⏭ 相手のターンをスキップ！');
         break;
       case 'swap':
@@ -156,21 +193,48 @@ export default function GamePage() {
         });
         showMsg('🔄 手札を交換した！');
         break;
+      case 'return':
+        if (myHand.length > 0) {
+          const jokerIdx = myHand.indexOf('joker');
+          const idx = jokerIdx >= 0 ? jokerIdx : 0;
+          const newHand = myHand.filter((_, i) => i !== idx);
+          await updateDoc(doc(db, 'abilityMaidGames', id), {
+            [`players.${myId}.hand`]: newHand,
+            deck: shuffle([...game.deck, myHand[idx]]),
+          });
+          showMsg('↩ カードを山札に戻した！');
+        }
+        break;
+      case 'discard':
+        if (myHand.length > 0) {
+          const newHand = myHand.slice(0, -1);
+          await updateDoc(doc(db, 'abilityMaidGames', id), {
+            [`players.${myId}.hand`]: newHand,
+          });
+          showMsg('🗑 カードを捨てた！');
+        }
+        break;
       case 'draw':
         const drawn2 = game.deck.slice(0, 2);
-        const newDeck = game.deck.slice(2);
-        const newHand = removePairs([...myHand, ...drawn2]);
+        const newHand2 = removePairs([...myHand, ...drawn2]);
         await updateDoc(doc(db, 'abilityMaidGames', id), {
-          [`players.${myId}.hand`]: newHand,
-          deck: newDeck,
+          [`players.${myId}.hand`]: newHand2,
+          deck: game.deck.slice(2),
         });
         showMsg('🃏 山札から2枚引いた！');
+        break;
+      case 'clairvoyance':
+        showMsg(`🔮 山札の上3枚：${game.deck.slice(0, 3).map(c => c === 'joker' ? '🃏' : ABILITY_INFO[c as AbilityType]?.name).join('、')}`);
+        break;
+      case 'reflect':
+        showMsg('🛡 反射を準備！相手の次の能力を跳ね返す');
+        break;
+      case 'nullify':
+        showMsg('🚫 無効化を準備！相手の次の能力を無効にする');
         break;
     }
     setPendingAbility(null);
   };
-
-  const opponentHandDisplay = opponentRevealed ? opponent?.hand : opponent?.hand?.map(() => 'hidden');
 
   // 終了画面
   if (game.status === 'finished') {
@@ -200,27 +264,40 @@ export default function GamePage() {
     );
   }
 
+  const opponentDisplay = opponentRevealed ? opponent?.hand : opponent?.hand?.map(() => 'hidden' as const);
+
   return (
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', padding: 16, gap: 12, maxWidth: 480, margin: '0 auto' }}>
 
-      {/* ターン表示 */}
+      {/* ターン・フェーズ表示 */}
       <div style={{ background: isMyTurn ? '#1a3a1a' : '#3a1a1a', borderRadius: 12, padding: '12px 16px', textAlign: 'center' }}>
         <p style={{ fontWeight: 700, fontSize: 16 }}>
           {isMyTurn ? '🟢 あなたのターン' : `🔴 ${opponent?.name ?? '相手'}のターン`}
         </p>
-        {message && <p style={{ fontSize: 13, color: '#ffd700', marginTop: 4 }}>{message}</p>}
+        {isMyTurn && (
+          <p style={{ fontSize: 12, color: '#ffd700', marginTop: 4 }}>
+            {turnPhase === 'draw_deck' ? '① 山札からカードを引いてください' : '② 相手の手札からカードを引いてください'}
+          </p>
+        )}
+        {message && <p style={{ fontSize: 13, color: '#4fc3f7', marginTop: 4 }}>{message}</p>}
       </div>
 
       {/* 能力発動UI */}
       {pendingAbility && (
-        <div style={{ background: '#2a1a4a', border: '1px solid #9b59b6', borderRadius: 12, padding: 16 }}>
-          <p style={{ fontWeight: 700, marginBottom: 8 }}>⚡ {ABILITY_INFO[pendingAbility].name} が使えます！</p>
-          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 12 }}>{ABILITY_INFO[pendingAbility].desc}</p>
+        <div style={{ background: '#2a1a4a', border: '2px solid #9b59b6', borderRadius: 12, padding: 16 }}>
+          <p style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>
+            ⚡ {ABILITY_INFO[pendingAbility].name} が使えます！
+          </p>
+          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 12 }}>
+            {ABILITY_INFO[pendingAbility].desc}
+          </p>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => useAbility(pendingAbility)} style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: '#9b59b6', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+            <button onClick={() => useAbility(pendingAbility)}
+              style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: '#9b59b6', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
               発動する
             </button>
-            <button onClick={() => setPendingAbility(null)} style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.3)', background: 'transparent', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+            <button onClick={() => setPendingAbility(null)}
+              style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.3)', background: 'transparent', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
               スキップ
             </button>
           </div>
@@ -229,41 +306,69 @@ export default function GamePage() {
 
       {/* 相手の手札 */}
       <div style={{ background: '#16213e', borderRadius: 12, padding: 16 }}>
-        <p style={{ marginBottom: 12, fontWeight: 700 }}>
+        <p style={{ marginBottom: 8, fontWeight: 700 }}>
           {opponent?.name ?? '相手'} の手札（{opponent?.hand?.length ?? 0}枚）
         </p>
-        {isMyTurn && !pendingAbility && (
-          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 8 }}>カードをタップして引く</p>
+        {isMyTurn && turnPhase === 'draw_opponent' && !pendingAbility && (
+          <p style={{ fontSize: 12, color: '#ffd700', marginBottom: 8 }}>タップして引く👇</p>
         )}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {opponentHandDisplay?.map((card, i) => (
+          {opponentDisplay?.map((card, i) => (
             <button key={i} onClick={() => drawFromOpponent(i)}
-              style={{ width: 56, height: 76, borderRadius: 8, border: '1px solid rgba(255,255,255,0.3)', background: card === 'hidden' ? 'linear-gradient(135deg,#1a1a4e,#0f3460)' : '#2a1a4a', color: '#fff', fontSize: card === 'hidden' ? 24 : 11, fontWeight: 700, cursor: isMyTurn ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, textAlign: 'center' }}>
-              {card === 'hidden' ? '🂠' : card === 'joker' ? '🃏' : ABILITY_INFO[card as AbilityType]?.name ?? card}
+              style={{
+                ...CARD_STYLE(
+                  isMyTurn && turnPhase === 'draw_opponent' ? '#ffd700' : 'rgba(255,255,255,0.2)',
+                  '#0f3460',
+                  isMyTurn && turnPhase === 'draw_opponent' ? 'pointer' : 'default'
+                ),
+                fontSize: 24,
+              }}>
+              {card === 'hidden' ? '🂠' : card === 'joker' ? '🃏' : ABILITY_INFO[card as AbilityType]?.name}
             </button>
           ))}
         </div>
       </div>
 
+      {/* 山札 */}
+      <div style={{ background: '#16213e', borderRadius: 12, padding: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <button onClick={drawFromDeck}
+          disabled={!isMyTurn || turnPhase !== 'draw_deck' || processing}
+          style={{
+            ...CARD_STYLE(
+              isMyTurn && turnPhase === 'draw_deck' ? '#4fc3f7' : 'rgba(255,255,255,0.2)',
+              isMyTurn && turnPhase === 'draw_deck' ? '#0d2137' : '#111',
+              isMyTurn && turnPhase === 'draw_deck' ? 'pointer' : 'default'
+            ),
+            fontSize: 28, opacity: game.deck.length === 0 ? 0.4 : 1,
+          }}>
+          🎴
+        </button>
+        <div>
+          <p style={{ fontWeight: 700 }}>山札</p>
+          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>{game.deck?.length ?? 0}枚残り</p>
+          {isMyTurn && turnPhase === 'draw_deck' && (
+            <p style={{ fontSize: 11, color: '#4fc3f7' }}>← タップして引く</p>
+          )}
+        </div>
+      </div>
+
       {/* 自分の手札 */}
       <div style={{ background: '#16213e', borderRadius: 12, padding: 16 }}>
-        <p style={{ marginBottom: 12, fontWeight: 700 }}>
+        <p style={{ marginBottom: 8, fontWeight: 700 }}>
           あなたの手札（{myPlayer?.hand?.length ?? 0}枚）
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {myPlayer?.hand?.map((card, i) => (
-            <div key={i} style={{ width: 56, height: 76, borderRadius: 8, border: `1px solid ${card === 'joker' ? '#ffd700' : '#9b59b6'}`, background: card === 'joker' ? '#3a3a00' : '#2a1a4a', color: card === 'joker' ? '#ffd700' : '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, textAlign: 'center' }}>
-              {card === 'joker' ? '🃏 JOKER' : ABILITY_INFO[card as AbilityType]?.name ?? card}
+            <div key={i} style={CARD_STYLE(
+              card === 'joker' ? '#ffd700' : '#9b59b6',
+              card === 'joker' ? '#3a3a00' : '#2a1a4a'
+            )}>
+              {card === 'joker' ? '🃏 JOKER' : ABILITY_INFO[card as AbilityType]?.name}
             </div>
           ))}
         </div>
       </div>
 
-      {/* 山札 */}
-      <div style={{ background: '#16213e', borderRadius: 12, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>🎴 山札：</span>
-        <span style={{ fontWeight: 700 }}>{game.deck?.length ?? 0}枚</span>
-      </div>
     </div>
   );
 }
