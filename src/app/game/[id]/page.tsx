@@ -82,7 +82,7 @@ export default function GamePage() {
       return;
     }
 
-    showMsg(`${drawn === 'joker' ? '🃏' : ABILITY_INFO[drawn as AbilityType]?.name} を引きました！`);
+    showMsg(`${ABILITY_INFO[drawn as AbilityType]?.name ?? drawn} を引きました！`);
 
     // 3枚揃いチェック
     const triple = checkTriple(newMyHand);
