@@ -82,7 +82,7 @@ export default function Home() {
   };
 
   const s = {
-    container: { minHeight: '100dvh', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 24, background: '#0a0a1a' },
+    container: { height: '100dvh', overflowY: 'auto' as const, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 24, background: '#0a0a1a' },
     title: { fontSize: 32, fontWeight: 900, textAlign: 'center' as const, color: '#fff' },
     sub: { fontSize: 14, color: 'rgba(255,255,255,0.5)', textAlign: 'center' as const, marginTop: 4 },
     card: { background: '#111126', borderRadius: 16, padding: 24, width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column' as const, gap: 12, border: '1px solid rgba(255,255,255,0.06)' },
