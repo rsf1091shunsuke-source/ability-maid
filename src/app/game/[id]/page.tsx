@@ -184,16 +184,18 @@ useEffect(() => {
 
   autoDrawing.current = true;
   const timer = setTimeout(async () => {
-    try {
-      if (!game.deck || game.deck.length === 0) {
-        await updateDoc(doc(db, 'abilityMaidGames', id), { turnPhase: 'draw_opponent' });
-        return;
-      }
-      await autoDrawFromDeck(game);
-    } finally {
-      autoDrawing.current = false;
+  try {
+    const g = latestGame.current;
+    if (!g) return;
+    if (!g.deck || g.deck.length === 0) {
+      await updateDoc(doc(db, 'abilityMaidGames', id), { turnPhase: 'draw_opponent' });
+      return;
     }
-  }, 800);
+    await autoDrawFromDeck(g);
+  } finally {
+    autoDrawing.current = false;
+  }
+}, 800);
   return () => {
     clearTimeout(timer);
     autoDrawing.current = false;
