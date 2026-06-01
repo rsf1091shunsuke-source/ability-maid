@@ -163,16 +163,29 @@ export default function GamePage() {
 
   // 自分のターンになったら自動で山札を引く
   useEffect(() => {
-    if (!game || !myId || game.status !== 'playing') return;
-    const isMyTurn = game.currentTurn === myId;
-    const turnPhase = game.turnPhase || 'draw_deck';
-    if (!isMyTurn || turnPhase !== 'draw_deck' || processing) return;
-    const turnKey = `${myId}-${game.deck.length}`;
-    if (autoDrawRef.current === turnKey) return;
-    autoDrawRef.current = turnKey;
-    const timer = setTimeout(() => autoDrawFromDeck(game), 800);
-    return () => clearTimeout(timer);
- }, [game?.currentTurn, game?.turnPhase, myId]);
+  if (!game || !myId || game.status !== 'playing') return;
+  if (game.currentTurn !== myId) { autoDrawing.current = false; return; }
+  if ((game.turnPhase || 'draw_deck') !== 'draw_deck') return;
+  if (autoDrawing.current) return;
+
+  autoDrawing.current = true;
+  const timer = setTimeout(async () => {
+    try {
+      if (!game.deck || game.deck.length === 0) {
+        await updateDoc(doc(db, 'abilityMaidGames', id), { turnPhase: 'draw_opponent' });
+        return;
+      }
+      await autoDrawFromDeck(game);
+    } finally {
+      autoDrawing.current = false;
+    }
+  }, 800);
+  return () => {
+    clearTimeout(timer);
+    autoDrawing.current = false;
+  };
+}, [game?.currentTurn, game?.turnPhase, myId]);
+    
 
   // 暴露チェック
   useEffect(() => {
