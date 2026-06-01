@@ -179,11 +179,71 @@ useEffect(() => {
   }, []);
 
   // 自分のターンになったら自動で山札を引く
+  // ← このuseEffectを丸ごと置き換える（自動山札ドロー）
   useEffect(() => {
-  if (!game || !myId || game.status !== 'playing') return;
-  if (game.currentTurn !== myId) { autoDrawing.current = false; return; }
-  if ((game.turnPhase || 'draw_deck') !== 'draw_deck') return;
-  if (autoDrawing.current) return;
+    if (!game || !myId || game.status !== 'playing') return;
+    if (game.currentTurn !== myId) { autoDrawing.current = false; return; }
+    if ((game.turnPhase || 'draw_deck') !== 'draw_deck') return;
+    if (autoDrawing.current) return;
+
+    const opId = game.playerIds.find(pid => pid !== myId) || '';
+    if (!opId || !game.players[opId]) return;
+
+    autoDrawing.current = true;
+
+    const timer = setTimeout(async () => {
+      try {
+        const oppHand = game.players[opId]?.hand || [];
+
+        if (!game.deck || game.deck.length === 0) {
+          await updateDoc(doc(db, 'abilityMaidGames', id), {
+            [`players.${opId}.hand`]: shuffle([...oppHand]),
+            turnPhase: 'draw_opponent',
+          });
+          return;
+        }
+
+        const drawn = game.deck[0];
+        const newDeck = game.deck.slice(1);
+        const myHand = game.players[myId]?.hand || [];
+        const newMyHand = removePairs([...myHand, drawn]);
+        const gained = myHand.length + 1 - newMyHand.length;
+
+        setRevealCard(drawn);
+        await new Promise(r => setTimeout(r, 500));
+        setRevealCard(null);
+
+        const info = drawn !== 'joker' ? ABILITY_INFO[drawn as AbilityType] : null;
+        showMsg(`山札から ${drawn === 'joker' ? '🃏 ジョーカー' : `${info?.icon ?? ''} ${info?.name ?? drawn}`} を引いた！`);
+
+        const baseUpdate: Record<string, unknown> = {
+          [`players.${myId}.hand`]: newMyHand,
+          [`players.${opId}.hand`]: shuffle([...oppHand]),
+          deck: newDeck,
+          turnPhase: 'draw_opponent',
+        };
+
+        if (gained >= 2 && (drawn as string) !== 'joker') {
+          const currentAbilities = game.players[myId]?.availableAbilities || [];
+          await updateDoc(doc(db, 'abilityMaidGames', id), {
+            ...baseUpdate,
+            [`players.${myId}.availableAbilities`]: [...currentAbilities, drawn],
+          });
+        } else {
+          await updateDoc(doc(db, 'abilityMaidGames', id), baseUpdate);
+        }
+      } catch (e) {
+        console.error('Auto draw failed:', e);
+      } finally {
+        autoDrawing.current = false;
+      }
+    }, 800);
+
+    return () => {
+      clearTimeout(timer);
+      autoDrawing.current = false;
+    };
+  }, [game?.currentTurn, game?.turnPhase, game?.playerIds?.length, myId]);
 
   autoDrawing.current = true;
   const timer = setTimeout(async () => {
