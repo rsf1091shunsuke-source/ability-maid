@@ -127,6 +127,7 @@ export default function GamePage() {
   const [revealCard, setRevealCard] = useState<CardType | null>(null);
   const [challengeCountdown, setChallengeCountdown] = useState(0);
   const autoDrawRef = useRef('');
+  const autoDrawing = useRef(false);
   const challengeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
