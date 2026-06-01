@@ -4,8 +4,7 @@ import { useRouter } from 'next/navigation';
 import { collection, addDoc, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { db, auth } from '@/lib/firebase';
-import { createDeck, dealCards, removePairs, shuffle } from '@/lib/gameLogic';
-import type { CardType } from '@/lib/gameLogic';
+import { createDeck, dealInitialHands, removePairs, getEarnedAbilities, shuffle } from '@/lib/gameLogic';
 
 export default function Home() {
   const router = useRouter();
@@ -20,21 +19,31 @@ export default function Home() {
     try {
       const { user } = await signInAnonymously(auth);
       const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-      const deck = createDeck();
-      const [hand1, hand2] = dealCards(deck);
+      const { hand1, hand2, drawDeck } = dealInitialHands(createDeck());
+      const cleanHand1 = removePairs(hand1);
+      const cleanHand2 = removePairs(hand2);
+      const earned1 = getEarnedAbilities(hand1);
+      const earned2 = getEarnedAbilities(hand2);
       const gameRef = await addDoc(collection(db, 'abilityMaidGames'), {
         roomCode: code,
         status: 'waiting',
         currentTurn: user.uid,
         winner: null,
-        skipped: false,
-        jokerEffect: null,
         createdAt: Date.now(),
+        turnPhase: 'draw_deck',
+        sealed: false,
+        decoyIndex: null,
+        markedIndex: null,
+        blackoutActive: false,
+        reflectActive: null,
+        nullifyActive: null,
         players: {
-          [user.uid]: { name: name.trim(), hand: removePairs(hand1) }
+          [user.uid]: { name: name.trim(), hand: cleanHand1, availableAbilities: earned1 }
         },
         playerIds: [user.uid],
-        deck: shuffle(removePairs(hand2)),
+        deck: drawDeck,
+        hand2: cleanHand2,
+        hand2Abilities: earned2,
       });
       localStorage.setItem('abilityMaidUid', user.uid);
       localStorage.setItem('abilityMaidName', name.trim());
@@ -56,12 +65,16 @@ export default function Home() {
       const data = gameDoc.data();
       if (data.status !== 'waiting') { setError('このゲームはすでに始まっています'); setLoading(false); return; }
       const hostId = data.playerIds[0];
-      const guestHand: CardType[] = data.deck;
       await updateDoc(doc(db, 'abilityMaidGames', gameDoc.id), {
-        [`players.${user.uid}`]: { name: name.trim(), hand: guestHand },
+        [`players.${user.uid}`]: {
+          name: name.trim(),
+          hand: data.hand2,
+          availableAbilities: data.hand2Abilities || [],
+        },
         playerIds: [hostId, user.uid],
         status: 'playing',
-        deck: [],
+        hand2: null,
+        hand2Abilities: null,
       });
       localStorage.setItem('abilityMaidUid', user.uid);
       localStorage.setItem('abilityMaidName', name.trim());
