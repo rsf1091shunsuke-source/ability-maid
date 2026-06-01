@@ -165,7 +165,7 @@ export default function GamePage() {
     autoDrawRef.current = turnKey;
     const timer = setTimeout(() => autoDrawFromDeck(game), 800);
     return () => clearTimeout(timer);
-  }, [game?.currentTurn, game?.turnPhase, game?.deck?.length, myId, processing]);
+ }, [game?.currentTurn, game?.turnPhase, myId]);
 
   // 暴露チェック
   useEffect(() => {
