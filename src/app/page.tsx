@@ -81,52 +81,48 @@ export default function Home() {
     finally { setLoading(false); }
   };
 
-  const s = {
-    container: { height: '100dvh', overflowY: 'auto' as const, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'flex-start',
-paddingTop: 40, padding: 24, gap: 24, background: '#0a0a1a' },
-    title: { fontSize: 32, fontWeight: 900, textAlign: 'center' as const, color: '#fff' },
-    sub: { fontSize: 14, color: 'rgba(255,255,255,0.5)', textAlign: 'center' as const, marginTop: 4 },
-    card: { background: '#111126', borderRadius: 16, padding: 24, width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column' as const, gap: 12, border: '1px solid rgba(255,255,255,0.06)' },
-    input: { padding: '12px 16px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.06)', color: '#fff', fontSize: 16, outline: 'none', width: '100%' },
-    btn: { padding: '14px', borderRadius: 10, border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer', width: '100%' },
-    error: { color: '#ff6b6b', fontSize: 13, textAlign: 'center' as const },
-  };
+  const input = { padding: '12px 16px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.06)', color: '#fff', fontSize: 16, outline: 'none', width: '100%', boxSizing: 'border-box' as const };
+  const btn = { padding: '14px', borderRadius: 10, border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer', width: '100%' };
 
   return (
-    <div style={s.container}>
-      <div>
-        <div style={s.title}>⚡ Ability Maid</div>
-        <div style={s.sub}>能力カードで戦うリアルタイムババ抜き</div>
+    <div style={{ minHeight: '100dvh', background: '#0a0a1a', padding: '40px 16px 40px', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 24 }}>
+
+      {/* タイトル */}
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: 32, fontWeight: 900, color: '#fff' }}>⚡ Ability Maid</div>
+        <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>能力カードで戦うリアルタイムババ抜き</div>
       </div>
 
-      <div style={s.card}>
+      {/* メインカード */}
+      <div style={{ background: '#111126', borderRadius: 16, padding: 24, width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column' as const, gap: 12, border: '1px solid rgba(255,255,255,0.06)' }}>
         <p style={{ fontWeight: 700, fontSize: 16, color: '#fff' }}>名前を入力</p>
-        <input style={s.input} placeholder="あなたの名前" value={name} onChange={e => setName(e.target.value)} />
+        <input style={input} placeholder="あなたの名前" value={name} onChange={e => setName(e.target.value)} />
 
         <p style={{ fontWeight: 700, fontSize: 15, color: '#fff', marginTop: 8 }}>部屋を作る</p>
-        <button style={{ ...s.btn, background: 'linear-gradient(135deg,#e94560,#c0392b)', color: '#fff' }} onClick={handleCreate} disabled={loading}>
+        <button style={{ ...btn, background: 'linear-gradient(135deg,#e94560,#c0392b)', color: '#fff' }} onClick={handleCreate} disabled={loading}>
           {loading ? '作成中...' : '✦ 新しい部屋を作る'}
         </button>
 
         <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>── または ──</div>
 
         <p style={{ fontWeight: 700, fontSize: 15, color: '#fff' }}>部屋に参加する</p>
-        <input style={s.input} placeholder="ルームコード（例：ABC123）" value={roomCode} onChange={e => setRoomCode(e.target.value)} />
-        <button style={{ ...s.btn, background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' }} onClick={handleJoin} disabled={loading}>
+        <input style={input} placeholder="ルームコード（例：ABC123）" value={roomCode} onChange={e => setRoomCode(e.target.value)} />
+        <button style={{ ...btn, background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' }} onClick={handleJoin} disabled={loading}>
           {loading ? '参加中...' : '参加する'}
         </button>
 
-        {error && <p style={s.error}>{error}</p>}
+        {error && <p style={{ color: '#ff6b6b', fontSize: 13, textAlign: 'center' }}>{error}</p>}
       </div>
 
-      {/* 能力一覧 */}
+      {/* 能力一覧ボタン */}
       <button onClick={() => setShowGuide(!showGuide)}
-        style={{ ...s.btn, maxWidth: 360, background: 'rgba(155,89,182,0.15)', border: '1px solid rgba(155,89,182,0.3)', color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>
+        style={{ ...btn, maxWidth: 360, background: 'rgba(155,89,182,0.15)', border: '1px solid rgba(155,89,182,0.3)', color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>
         📖 能力カード一覧 {showGuide ? '▲' : '▼'}
       </button>
 
+      {/* 能力一覧 */}
       {showGuide && (
-        <div style={{ width: '100%', maxWidth: 360, background: '#111126', borderRadius: 16, padding: 20, display: 'flex', flexDirection: 'column', gap: 8, border: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ width: '100%', maxWidth: 360, background: '#111126', borderRadius: 16, padding: 20, display: 'flex', flexDirection: 'column' as const, gap: 8, border: '1px solid rgba(255,255,255,0.06)' }}>
           <p style={{ fontWeight: 900, fontSize: 15, marginBottom: 4, color: '#fff' }}>⚡ 能力カード一覧</p>
           {(Object.entries(ABILITY_INFO) as [AbilityType, typeof ABILITY_INFO[AbilityType]][]).map(([key, info]) => (
             <div key={key} style={{
