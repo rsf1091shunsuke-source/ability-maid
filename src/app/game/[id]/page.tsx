@@ -467,9 +467,6 @@ turnPhase: 'draw_opponent',
           [`players.${opponentId}.hand`]: myPlayer.hand,
         });
         break;
-      case 'disguise':
-        showMsg('🎭 偽装！ジョーカーが別カードに見せかけられた！');
-        break;
       case 'decoy':
         setSelectingDecoy(true);
         showMsg('🪤 囮にするカードを選んでください');
