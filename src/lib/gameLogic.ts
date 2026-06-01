@@ -45,16 +45,34 @@ export function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-// 7枚ずつ配る
+// 7枚ずつ配る（各プレイヤーの手札は全て異なる能力）
 export function dealInitialHands(deck: CardType[]): {
   hand1: CardType[]; hand2: CardType[]; drawDeck: CardType[];
 } {
   const shuffled = shuffle(deck);
-  return {
-    hand1: shuffled.slice(0, 7),
-    hand2: shuffled.slice(7, 14),
-    drawDeck: shuffled.slice(14),
-  };
+  const hand1: CardType[] = [];
+  const hand2: CardType[] = [];
+  const remaining: CardType[] = [];
+
+  for (const card of shuffled) {
+    // ジョーカーは山札へ
+    if (card === 'joker') {
+      remaining.push(card);
+      continue;
+    }
+    // 手札1に同じ能力がなく7枚未満なら追加
+    if (hand1.length < 7 && !hand1.includes(card)) {
+      hand1.push(card);
+    // 手札2に同じ能力がなく7枚未満なら追加
+    } else if (hand2.length < 7 && !hand2.includes(card)) {
+      hand2.push(card);
+    // どちらにも入らない場合は山札へ
+    } else {
+      remaining.push(card);
+    }
+  }
+
+  return { hand1, hand2, drawDeck: shuffle(remaining) };
 }
 
 // ペアを取り除く
