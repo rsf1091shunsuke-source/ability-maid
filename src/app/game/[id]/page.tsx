@@ -76,7 +76,10 @@ function CardDisplay({ card, faceDown = false, highlighted = false, onClick, bad
             {info.isCurse && <span style={{ fontSize: 8, color: '#ff6b6b', textAlign: 'center' as const }}>呪い</span>}
           </>
         ) : (
-          <span style={{ fontSize: 16 }}>❓</span>
+          <>
+            <span style={{ fontSize: 20, lineHeight: 1, textAlign: 'center' as const }}>🤝</span>
+            <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', textAlign: 'center' as const, lineHeight: 1.3 }}>手渡し</span>
+          </>
         )}
       </div>
       {badge && (
