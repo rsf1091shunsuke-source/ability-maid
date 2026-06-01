@@ -276,7 +276,7 @@ export default function GamePage() {
 
   // 山札から自動で引く
   const autoDrawFromDeck = async (currentGame: GameState) => {
-    if (processing || !currentGame || currentGame.deck.length === 0) {
+    if (!currentGame || currentGame.deck.length === 0) {
       if (currentGame.deck.length === 0) {
         await updateDoc(doc(db, 'abilityMaidGames', id), { turnPhase: 'draw_opponent' });
       }
