@@ -139,6 +139,7 @@ export default function GamePage() {
   const [challengeCountdown, setChallengeCountdown] = useState(0);
   const autoDrawRef = useRef('');
   const autoDrawing = useRef(false);
+  const latestGame = useRef<GameState | null>(null);
   const challengeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
