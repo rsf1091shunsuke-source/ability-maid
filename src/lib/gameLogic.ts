@@ -15,7 +15,7 @@ export const ABILITY_INFO: Record<AbilityType, {
   nullify:  { name: '無効',     icon: '🚫', desc: '相手の次の能力を無効化する',                           count: 4 },
   return:   { name: '返却',     icon: '↩️', desc: '手札1枚を山札に戻す',                                count: 4 },
   swap:     { name: '交換',     icon: '🔄', desc: '手札を全部入れ替える',                               count: 4, condition: '相手の手札が自分より3枚以上多いとき' },
-  disguise: { name: '偽装',     icon: '🎭', desc: 'ジョーカーを別カードに見せかける',                    count: 4, condition: '自分がジョーカーを持っているとき' },
+  handover: { name: '手渡し', icon: '🤝', desc: '自分の手札から1枚選んで相手に渡す', count: 4 },
   decoy:    { name: '囮',       icon: '🪤', desc: '次に相手が引くとき1枚指定して引かせない',              count: 4, condition: '相手の手札が3枚以下のとき' },
   draw:     { name: '山引き',   icon: '🎴', desc: '山札からランダムに2枚引く',                           count: 6, isLuck: true },
   reveal:   { name: '全公開',   icon: '🔮', desc: '相手の手札を10秒間全て表向きにする',                  count: 6, isLuck: true },
