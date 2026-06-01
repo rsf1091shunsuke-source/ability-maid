@@ -79,7 +79,7 @@ boxSizing: 'border-box' as const,
     {info?.isCurse && <span style={{ fontSize: 8, color: '#ff6b6b', textAlign: 'center' }}>呪い</span>}
   </div>
 )}
-      </button>
+      </div>
       {badge && (
         <span style={{ position: 'absolute', top: -8, right: -8, fontSize: 16 }}>{badge}</span>
       )}
