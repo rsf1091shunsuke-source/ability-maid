@@ -118,6 +118,9 @@ function DrawnCardOverlay({ card }: { card: CardType | null }) {
           {card === 'joker' ? 'JOKER' : info?.name}
         </div>
         {info?.isCurse && <div style={{ fontSize: 14, color: '#E53935', marginTop: 4 }}>💀 呪いカード</div>}
+        {!info && card !== 'joker' && (
+  <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', textAlign: 'center' as const }}>?</span>
+)}
       </div>
     </div>
   );
