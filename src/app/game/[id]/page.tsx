@@ -50,7 +50,7 @@ function CardDisplay({ card, faceDown = false, highlighted = false, onClick, bad
     : card === 'joker' ? '#3a3a00'
     : info?.isCurse ? 'rgba(229,57,53,0.15)'
     : info?.isLuck ? 'rgba(255,193,7,0.08)'
-    : '#2a1a4a';
+    : '#2a1a4a'
 
   return (
     <div style={{ position: 'relative', flexShrink: 0 }}>
