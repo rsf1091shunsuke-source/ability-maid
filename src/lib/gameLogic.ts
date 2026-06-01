@@ -1,30 +1,30 @@
 export type AbilityType =
   | 'spy' | 'marker' | 'seal' | 'blackout'
   | 'reflect' | 'nullify' | 'return' | 'swap'
-  | 'disguise' | 'decoy' | 'draw' | 'reveal';
+  | 'disguise' | 'decoy' | 'draw' | 'reveal' | 'expose';
 
 export const ABILITY_INFO: Record<AbilityType, {
-  name: string; desc: string; count: number;
-  condition?: string; isLuck?: boolean;
+  name: string; desc: string; count: number; icon: string;
+  condition?: string; isLuck?: boolean; isCurse?: boolean;
 }> = {
-  spy:      { name: '覗き見',   desc: '相手の手札を3秒間見る',                              count: 4 },
-  marker:   { name: 'マーカー', desc: '相手の手札1枚の場所を次のターンまで把握できる',         count: 4 },
-  seal:     { name: '封じ込め', desc: '次のターン相手の手札がシャッフルされない',              count: 4 },
-  blackout: { name: '情報封鎖', desc: '相手の覗き見・マーカーを無効化する',                   count: 4 },
-  reflect:  { name: '反射',     desc: '相手の次の能力を跳ね返す',                            count: 4 },
-  nullify:  { name: '無効',     desc: '相手の次の能力を無効化する',                           count: 4 },
-  return:   { name: '返却',     desc: '手札1枚を山札に戻す',                                count: 4 },
-  swap:     { name: '交換',     desc: '手札を全部入れ替える',                               count: 4, condition: '相手の手札が自分より3枚以上多いとき' },
-  disguise: { name: '偽装',     desc: 'ジョーカーを別カードに見せかける',                    count: 4, condition: '自分がジョーカーを持っているとき' },
-  decoy:    { name: '囮',       desc: '次に相手が引くとき1枚指定して引かせない',              count: 4, condition: '相手の手札が3枚以下のとき' },
-  draw:     { name: '山引き',   desc: '山札からランダムに2枚引く',                           count: 6, isLuck: true },
-  reveal:   { name: '全公開',   desc: '相手の手札を10秒間全て表向きにする',                  count: 6, isLuck: true },
+  spy:      { name: '覗き見',   icon: '👁',  desc: '相手の手札を3秒間見る',                              count: 4 },
+  marker:   { name: 'マーカー', icon: '📍', desc: '相手の手札1枚の場所を次のターンまで把握できる',         count: 4 },
+  seal:     { name: '封じ込め', icon: '🔒', desc: '次のターン相手の手札がシャッフルされない',              count: 4 },
+  blackout: { name: '情報封鎖', icon: '🌑', desc: '相手の覗き見・マーカーを無効化する',                   count: 4 },
+  reflect:  { name: '反射',     icon: '🛡', desc: '相手の次の能力を跳ね返す',                            count: 4 },
+  nullify:  { name: '無効',     icon: '🚫', desc: '相手の次の能力を無効化する',                           count: 4 },
+  return:   { name: '返却',     icon: '↩️', desc: '手札1枚を山札に戻す',                                count: 4 },
+  swap:     { name: '交換',     icon: '🔄', desc: '手札を全部入れ替える',                               count: 4, condition: '相手の手札が自分より3枚以上多いとき' },
+  disguise: { name: '偽装',     icon: '🎭', desc: 'ジョーカーを別カードに見せかける',                    count: 4, condition: '自分がジョーカーを持っているとき' },
+  decoy:    { name: '囮',       icon: '🪤', desc: '次に相手が引くとき1枚指定して引かせない',              count: 4, condition: '相手の手札が3枚以下のとき' },
+  draw:     { name: '山引き',   icon: '🎴', desc: '山札からランダムに2枚引く',                           count: 6, isLuck: true },
+  reveal:   { name: '全公開',   icon: '🔮', desc: '相手の手札を10秒間全て表向きにする',                  count: 6, isLuck: true },
+  expose:   { name: '暴露',     icon: '💀', desc: '【呪い】ペアが揃った瞬間、自分の手札が5秒間相手に公開される', count: 4, isCurse: true },
 };
 
 export const JOKER = 'joker';
 export type CardType = AbilityType | 'joker';
 
-// デッキ作成（合計53枚）
 export function createDeck(): CardType[] {
   const deck: CardType[] = ['joker'];
   for (const [ability, info] of Object.entries(ABILITY_INFO)) {
@@ -35,7 +35,6 @@ export function createDeck(): CardType[] {
   return deck;
 }
 
-// シャッフル
 export function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -45,7 +44,6 @@ export function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-// 7枚ずつ配る（各プレイヤーの手札は全て異なる能力）
 export function dealInitialHands(deck: CardType[]): {
   hand1: CardType[]; hand2: CardType[]; drawDeck: CardType[];
 } {
@@ -55,27 +53,18 @@ export function dealInitialHands(deck: CardType[]): {
   const remaining: CardType[] = [];
 
   for (const card of shuffled) {
-    // ジョーカーは山札へ
-    if (card === 'joker') {
-      remaining.push(card);
-      continue;
-    }
-    // 手札1に同じ能力がなく7枚未満なら追加
+    if (card === 'joker') { remaining.push(card); continue; }
     if (hand1.length < 7 && !hand1.includes(card)) {
       hand1.push(card);
-    // 手札2に同じ能力がなく7枚未満なら追加
     } else if (hand2.length < 7 && !hand2.includes(card)) {
       hand2.push(card);
-    // どちらにも入らない場合は山札へ
     } else {
       remaining.push(card);
     }
   }
-
   return { hand1, hand2, drawDeck: shuffle(remaining) };
 }
 
-// ペアを取り除く
 export function removePairs(hand: CardType[]): CardType[] {
   const result = [...hand];
   let changed = true;
@@ -98,7 +87,6 @@ export function removePairs(hand: CardType[]): CardType[] {
   return result;
 }
 
-// 最初の手札からペアで得た能力を取得
 export function getEarnedAbilities(rawHand: CardType[]): AbilityType[] {
   const earned: AbilityType[] = [];
   const counts: Record<string, number> = {};
@@ -113,7 +101,6 @@ export function getEarnedAbilities(rawHand: CardType[]): AbilityType[] {
   return earned;
 }
 
-// 3枚揃いチェック
 export function checkTriple(hand: CardType[]): AbilityType | null {
   const counts: Record<string, number> = {};
   for (const card of hand) {
@@ -124,7 +111,6 @@ export function checkTriple(hand: CardType[]): AbilityType | null {
   return null;
 }
 
-// 条件付き能力の条件チェック
 export function checkCondition(
   ability: AbilityType,
   myHand: CardType[],
