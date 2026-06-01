@@ -141,7 +141,9 @@ export default function GamePage() {
   const autoDrawing = useRef(false);
   const latestGame = useRef<GameState | null>(null);
   const challengeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+useEffect(() => {
+  latestGame.current = game;
+}, [game]);
   useEffect(() => {
     const uid = localStorage.getItem('abilityMaidUid') || '';
     setMyId(uid);
