@@ -326,7 +326,8 @@ export default function GamePage() {
       await updateDoc(doc(db, 'abilityMaidGames', id), {
         [`players.${myId}.hand`]: newMyHand,
         deck: newDeck,
-        turnPhase: 'draw_opponent',
+        [`players.${opponentId}.hand`]: shuffle([...oppHand]),
+turnPhase: 'draw_opponent',
         ...checkWin(newMyHand, oppHand),
       });
     }
