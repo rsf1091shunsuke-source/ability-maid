@@ -60,7 +60,8 @@ function CardDisplay({ card, faceDown = false, highlighted = false, onClick, bad
         color: '#fff', display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'flex-start',
 paddingTop: 40,
-        padding: 4, cursor: onClick ? 'pointer' : 'default', gap: 2,
+        padding: 0, cursor: onClick ? 'pointer' : 'default', gap: 2,
+boxSizing: 'border-box' as const,
         boxShadow: highlighted ? `0 0 12px ${borderColor}` : 'none',
         transition: 'box-shadow 0.2s',
       }}>
