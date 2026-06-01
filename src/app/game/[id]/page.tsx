@@ -50,38 +50,60 @@ function CardDisplay({ card, faceDown = false, highlighted = false, onClick, bad
     : card === 'joker' ? '#3a3a00'
     : info?.isCurse ? 'rgba(229,57,53,0.15)'
     : info?.isLuck ? 'rgba(255,193,7,0.08)'
-    : '#2a1a4a'
+    : '#2a1a4a';
 
   return (
     <div style={{ position: 'relative', flexShrink: 0 }}>
-      <div onClick={onClick} style={{
-        width: 62, height: 84, borderRadius: 12,
-        border: `2px solid ${borderColor}`, background: bg,
-        color: '#fff', display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'flex-start',
-paddingTop: 40,
-        padding: 0, cursor: onClick ? 'pointer' : 'default', gap: 2,
-boxSizing: 'border-box' as const,
-        boxShadow: highlighted ? `0 0 12px ${borderColor}` : 'none',
-        transition: 'box-shadow 0.2s',
-      }}>
-        {faceDown ? (
-  <span style={{ fontSize: 28, lineHeight: 1 }}>🂠</span>
-) : card === 'joker' ? (
-  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-    <span style={{ fontSize: 22, lineHeight: 1 }}>🃏</span>
-    <span style={{ fontSize: 9, color: '#ffd700', fontWeight: 900, textAlign: 'center' }}>JOKER</span>
-  </div>
-) : (
-  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-    <span style={{ fontSize: 20, lineHeight: 1 }}>{info?.icon}</span>
-    <span style={{ fontSize: 9, fontWeight: 700, textAlign: 'center', lineHeight: 1.2, wordBreak: 'keep-all' }}>{info?.name}</span>
-    {info?.isCurse && <span style={{ fontSize: 8, color: '#ff6b6b', textAlign: 'center' }}>呪い</span>}
-  </div>
-)}
+      <div
+        onClick={onClick}
+        style={{
+          width: 62,
+          height: 84,
+          borderRadius: 12,
+          border: `2px solid ${borderColor}`,
+          background: bg,
+          boxShadow: highlighted ? `0 0 12px ${borderColor}` : 'none',
+          transition: 'box-shadow 0.2s',
+          cursor: onClick ? 'pointer' : 'default',
+          boxSizing: 'border-box' as const,
+          display: 'table-cell',
+          verticalAlign: 'middle',
+          textAlign: 'center' as const,
+          width: 62 as any,
+          height: 84 as any,
+        }}
+      >
+        <div style={{
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column' as const,
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 3,
+          padding: 4,
+          boxSizing: 'border-box' as const,
+        }}>
+          {faceDown ? (
+            <span style={{ fontSize: 26, lineHeight: '1', display: 'block' }}>🂠</span>
+          ) : card === 'joker' ? (
+            <>
+              <span style={{ fontSize: 22, lineHeight: '1', display: 'block' }}>🃏</span>
+              <span style={{ fontSize: 9, color: '#ffd700', fontWeight: 900, display: 'block', textAlign: 'center' }}>JOKER</span>
+            </>
+          ) : (
+            <>
+              <span style={{ fontSize: 20, lineHeight: '1', display: 'block', textAlign: 'center' }}>{info?.icon}</span>
+              <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', display: 'block', textAlign: 'center', lineHeight: '1.3', wordBreak: 'keep-all' as const }}>{info?.name}</span>
+              {info?.isCurse && (
+                <span style={{ fontSize: 8, color: '#ff6b6b', display: 'block', textAlign: 'center' }}>呪い</span>
+              )}
+            </>
+          )}
+        </div>
       </div>
       {badge && (
-        <span style={{ position: 'absolute', top: -8, right: -8, fontSize: 16 }}>{badge}</span>
+        <span style={{ position: 'absolute', top: -8, right: -8, fontSize: 16, pointerEvents: 'none' }}>{badge}</span>
       )}
     </div>
   );
