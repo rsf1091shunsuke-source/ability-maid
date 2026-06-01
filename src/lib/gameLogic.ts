@@ -7,7 +7,7 @@ export const ABILITY_INFO: Record<AbilityType, {
   name: string; desc: string; count: number; icon: string;
   condition?: string; isLuck?: boolean; isCurse?: boolean;
 }> = {
-  spy:      { name: '覗き見',   icon: '👁',  desc: '相手の手札を3秒間見る',                              count: 4 },
+  spy:      { name: '覗き見',   icon: '👁',  desc: '相手の手札を5秒間見る',                              count: 4 },
   marker:   { name: 'マーカー', icon: '📍', desc: '相手の手札1枚の場所を次のターンまで把握できる',         count: 4 },
   seal:     { name: '封じ込め', icon: '🔒', desc: '次のターン相手の手札がシャッフルされない',              count: 4 },
   blackout: { name: '情報封鎖', icon: '🌑', desc: '相手の覗き見・マーカーを無効化する',                   count: 4 },
@@ -15,7 +15,7 @@ export const ABILITY_INFO: Record<AbilityType, {
   nullify:  { name: '無効',     icon: '🚫', desc: '相手の次の能力を無効化する',                           count: 4 },
   return:   { name: '返却',     icon: '↩️', desc: '手札1枚を山札に戻す',                                count: 4 },
   swap:     { name: '交換',     icon: '🔄', desc: '手札を全部入れ替える',                               count: 4, condition: '相手の手札が自分より3枚以上多いとき' },
-  handover: { name: '手渡し', icon: '🤝', desc: '自分の手札から1枚選んで相手に渡す', count: 4 },
+  handover: { name: '手渡し',   icon: '🤝', desc: '自分の手札から1枚選んで相手に渡す',                   count: 4 },
   decoy:    { name: '囮',       icon: '🪤', desc: '次に相手が引くとき1枚指定して引かせない',              count: 4, condition: '相手の手札が3枚以下のとき' },
   draw:     { name: '山引き',   icon: '🎴', desc: '山札からランダムに2枚引く',                           count: 6, isLuck: true },
   reveal:   { name: '全公開',   icon: '🔮', desc: '相手の手札を10秒間全て表向きにする',                  count: 6, isLuck: true },
@@ -118,7 +118,6 @@ export function checkCondition(
 ): boolean {
   switch (ability) {
     case 'swap':     return opponentHand.length >= myHand.length + 3;
-    case 'handover': return myHand.length > 0;
     case 'decoy':    return opponentHand.length <= 3;
     default:         return true;
   }
