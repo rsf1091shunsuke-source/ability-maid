@@ -66,44 +66,33 @@ function CardDisplay({ card, faceDown = false, highlighted = false, onClick, bad
           transition: 'box-shadow 0.2s',
           cursor: onClick ? 'pointer' : 'default',
           boxSizing: 'border-box' as const,
-          display: 'table-cell',
-          verticalAlign: 'middle',
-          textAlign: 'center' as const,
-          width: 62 as any,
-          height: 84 as any,
-        }}
-      >
-        <div style={{
-          width: '100%',
-          height: '100%',
           display: 'flex',
           flexDirection: 'column' as const,
           alignItems: 'center',
           justifyContent: 'center',
           gap: 3,
           padding: 4,
-          boxSizing: 'border-box' as const,
-        }}>
-          {faceDown ? (
-            <span style={{ fontSize: 26, lineHeight: '1', display: 'block' }}>🂠</span>
-          ) : card === 'joker' ? (
-            <>
-              <span style={{ fontSize: 22, lineHeight: '1', display: 'block' }}>🃏</span>
-              <span style={{ fontSize: 9, color: '#ffd700', fontWeight: 900, display: 'block', textAlign: 'center' }}>JOKER</span>
-            </>
-          ) : (
-            <>
-              <span style={{ fontSize: 20, lineHeight: '1', display: 'block', textAlign: 'center' }}>{info?.icon}</span>
-              <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', display: 'block', textAlign: 'center', lineHeight: '1.3', wordBreak: 'keep-all' as const }}>{info?.name}</span>
-              {info?.isCurse && (
-                <span style={{ fontSize: 8, color: '#ff6b6b', display: 'block', textAlign: 'center' }}>呪い</span>
-              )}
-            </>
-          )}
-        </div>
+        }}
+      >
+        {faceDown ? (
+          <span style={{ fontSize: 26, lineHeight: 1 }}>🂠</span>
+        ) : card === 'joker' ? (
+          <>
+            <span style={{ fontSize: 22, lineHeight: 1 }}>🃏</span>
+            <span style={{ fontSize: 9, color: '#ffd700', fontWeight: 900, textAlign: 'center' as const }}>JOKER</span>
+          </>
+        ) : (
+          <>
+            <span style={{ fontSize: 20, lineHeight: 1, textAlign: 'center' as const }}>{info?.icon}</span>
+            <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', textAlign: 'center' as const, lineHeight: 1.3, wordBreak: 'keep-all' as const }}>{info?.name}</span>
+            {info?.isCurse && (
+              <span style={{ fontSize: 8, color: '#ff6b6b', textAlign: 'center' as const }}>呪い</span>
+            )}
+          </>
+        )}
       </div>
       {badge && (
-        <span style={{ position: 'absolute', top: -8, right: -8, fontSize: 16, pointerEvents: 'none' }}>{badge}</span>
+        <span style={{ position: 'absolute', top: -8, right: -8, fontSize: 16, pointerEvents: 'none' as const }}>{badge}</span>
       )}
     </div>
   );
