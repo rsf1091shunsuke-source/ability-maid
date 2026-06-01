@@ -1,7 +1,7 @@
 export type AbilityType =
   | 'spy' | 'marker' | 'seal' | 'blackout'
   | 'reflect' | 'nullify' | 'return' | 'swap'
-  | 'disguise' | 'decoy' | 'draw' | 'reveal' | 'expose';
+  | 'handover' | 'decoy' | 'draw' | 'reveal' | 'expose';
 
 export const ABILITY_INFO: Record<AbilityType, {
   name: string; desc: string; count: number; icon: string;
