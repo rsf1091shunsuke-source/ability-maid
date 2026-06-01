@@ -54,7 +54,7 @@ function CardDisplay({ card, faceDown = false, highlighted = false, onClick, bad
 
   return (
     <div style={{ position: 'relative', flexShrink: 0 }}>
-      <button onClick={onClick} style={{
+      <div onClick={onClick} style={{
         width: 62, height: 84, borderRadius: 12,
         border: `2px solid ${borderColor}`, background: bg,
         color: '#fff', display: 'flex', flexDirection: 'column',
