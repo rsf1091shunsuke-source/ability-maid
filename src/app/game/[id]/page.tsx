@@ -410,6 +410,7 @@ export default function GamePage() {
           await updateDoc(doc(db, 'abilityMaidGames', id), {
             [`players.${myId}.hand`]: newHand,
             deck: shuffle([...game.deck, myPlayer.hand[idx]]),
+            ...checkWin(newHand, opponent.hand),
           });
         }
         break;
@@ -418,6 +419,7 @@ export default function GamePage() {
         await updateDoc(doc(db, 'abilityMaidGames', id), {
           [`players.${myId}.hand`]: opponent.hand,
           [`players.${opponentId}.hand`]: myPlayer.hand,
+          ...checkWin(opponent.hand, myPlayer.hand),
         });
         break;
       case 'handover':
@@ -435,6 +437,7 @@ export default function GamePage() {
         await updateDoc(doc(db, 'abilityMaidGames', id), {
           [`players.${myId}.hand`]: newHand2,
           deck: game.deck.slice(2),
+          ...checkWin(newHand2, opponent.hand),
         });
         break;
       case 'reveal':
@@ -481,6 +484,7 @@ export default function GamePage() {
     await updateDoc(doc(db, 'abilityMaidGames', id), {
       [`players.${myId}.hand`]: newMyHand,
       [`players.${opponentId}.hand`]: newOpponentHand,
+      ...checkWin(newMyHand, newOpponentHand),
     });
     setSelectingHandover(false);
   };
@@ -567,7 +571,7 @@ export default function GamePage() {
                   fontSize: 13, fontWeight: 700, cursor: conditionMet ? 'pointer' : 'not-allowed',
                   display: 'flex', alignItems: 'center', gap: 6,
                 }}>
-                  <span>{info?.icon}</span><span>{info?.name}</span>
+                  <span>{info?.icon ?? '🤝'}</span><span>{info?.name ?? String(ability)}</span>
                   {info?.condition && <span style={{ fontSize: 11 }}>{conditionMet ? '✅' : '🔒'}</span>}
                 </button>
               );
