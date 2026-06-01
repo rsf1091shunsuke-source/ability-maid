@@ -53,20 +53,15 @@ function CardDisplay({ card, faceDown = false, highlighted = false, onClick, bad
 
   return (
     <div style={{ position: 'relative', flexShrink: 0 }}>
-      <div
-        onClick={onClick}
-        style={{
-          width: 62, height: 84, borderRadius: 12,
-          border: `2px solid ${borderColor}`, background: bg,
-          boxShadow: highlighted ? `0 0 12px ${borderColor}` : 'none',
-          transition: 'box-shadow 0.2s',
-          cursor: onClick ? 'pointer' : 'default',
-          boxSizing: 'border-box' as const,
-          display: 'flex', flexDirection: 'column' as const,
-          alignItems: 'center', justifyContent: 'center',
-          gap: 3, padding: 4,
-        }}
-      >
+      <div onClick={onClick} style={{
+        width: 62, height: 84, borderRadius: 12,
+        border: `2px solid ${borderColor}`, background: bg,
+        boxShadow: highlighted ? `0 0 12px ${borderColor}` : 'none',
+        transition: 'box-shadow 0.2s', cursor: onClick ? 'pointer' : 'default',
+        boxSizing: 'border-box' as const, display: 'flex',
+        flexDirection: 'column' as const, alignItems: 'center',
+        justifyContent: 'center', gap: 3, padding: 4,
+      }}>
         {faceDown ? (
           <span style={{ fontSize: 26, lineHeight: 1 }}>🂠</span>
         ) : card === 'joker' ? (
@@ -176,6 +171,11 @@ export default function GamePage() {
 
     const timer = setTimeout(async () => {
       try {
+        // 前のターンのseal・decoyをリセット
+        if (game.sealed || game.decoyIndex !== null) {
+          await updateDoc(doc(db, 'abilityMaidGames', id), { sealed: false, decoyIndex: null });
+        }
+
         const oppHand = game.players[opId]?.hand || [];
         if (!game.deck || game.deck.length === 0) {
           await updateDoc(doc(db, 'abilityMaidGames', id), {
@@ -248,7 +248,7 @@ export default function GamePage() {
     return () => clearInterval(interval);
   }, [game?.abilityChallenge, myId]);
 
-  // チャレンジ解決（自分が使った能力）
+  // チャレンジ解決
   useEffect(() => {
     if (!game || !myId) return;
     const challenge = game.abilityChallenge;
@@ -311,7 +311,9 @@ export default function GamePage() {
     if (game.decoyIndex !== null && index === game.decoyIndex) { showMsg('🎭 そのカードは囮です！'); return; }
     setProcessing(true);
     const actualCard = opponent.hand[index];
-    const newOpponentHand = game.sealed ? opponent.hand.filter((_, i) => i !== index) : shuffle(opponent.hand.filter((_, i) => i !== index));
+    const newOpponentHand = game.sealed
+      ? opponent.hand.filter((_, i) => i !== index)
+      : shuffle(opponent.hand.filter((_, i) => i !== index));
     const newMyHand = removePairs([...myPlayer.hand, actualCard]);
     const gained = myPlayer.hand.length + 1 - newMyHand.length;
 
@@ -323,15 +325,20 @@ export default function GamePage() {
     const triple = checkTriple(newMyHand);
     if (triple) {
       const removed = newMyHand.filter(c => c !== triple);
-      await handlePairFormed(triple, removed, newOpponentHand, { currentTurn: opponentId, turnPhase: 'draw_deck', sealed: false, decoyIndex: null });
+      await handlePairFormed(triple, removed, newOpponentHand, {
+        currentTurn: opponentId, turnPhase: 'draw_deck',
+      });
       setProcessing(false); return;
     }
     if (gained >= 2 && (actualCard as string) !== 'joker') {
-      await handlePairFormed(actualCard as AbilityType, newMyHand, newOpponentHand, { currentTurn: opponentId, turnPhase: 'draw_deck', sealed: false, decoyIndex: null });
+      await handlePairFormed(actualCard as AbilityType, newMyHand, newOpponentHand, {
+        currentTurn: opponentId, turnPhase: 'draw_deck',
+      });
     } else {
       await updateDoc(doc(db, 'abilityMaidGames', id), {
-        [`players.${myId}.hand`]: newMyHand, [`players.${opponentId}.hand`]: newOpponentHand,
-        currentTurn: opponentId, turnPhase: 'draw_deck', sealed: false, decoyIndex: null,
+        [`players.${myId}.hand`]: newMyHand,
+        [`players.${opponentId}.hand`]: newOpponentHand,
+        currentTurn: opponentId, turnPhase: 'draw_deck',
         ...checkWin(newMyHand, newOpponentHand),
       });
     }
@@ -395,16 +402,19 @@ export default function GamePage() {
           const jokerIdx = myPlayer.hand.indexOf('joker');
           const idx = jokerIdx >= 0 ? jokerIdx : 0;
           const newHand = myPlayer.hand.filter((_, i) => i !== idx);
-          showMsg(`↩️ 返却！${myPlayer.hand[idx] === 'joker' ? 'ジョーカー' : ABILITY_INFO[myPlayer.hand[idx] as AbilityType]?.name}を山札に戻した！`);
+          const info = myPlayer.hand[idx] !== 'joker' ? ABILITY_INFO[myPlayer.hand[idx] as AbilityType] : null;
+          showMsg(`↩️ 返却！${myPlayer.hand[idx] === 'joker' ? 'ジョーカー' : info?.name ?? myPlayer.hand[idx]}を山札に戻した！`);
           await updateDoc(doc(db, 'abilityMaidGames', id), {
-            [`players.${myId}.hand`]: newHand, deck: shuffle([...game.deck, myPlayer.hand[idx]]),
+            [`players.${myId}.hand`]: newHand,
+            deck: shuffle([...game.deck, myPlayer.hand[idx]]),
           });
         }
         break;
       case 'swap':
         showMsg('🔄 交換！手札を全部入れ替えた！');
         await updateDoc(doc(db, 'abilityMaidGames', id), {
-          [`players.${myId}.hand`]: opponent.hand, [`players.${opponentId}.hand`]: myPlayer.hand,
+          [`players.${myId}.hand`]: opponent.hand,
+          [`players.${opponentId}.hand`]: myPlayer.hand,
         });
         break;
       case 'handover':
@@ -419,7 +429,10 @@ export default function GamePage() {
         await showRevealCard(drawn2);
         const newHand2 = removePairs([...myPlayer.hand, ...drawn2]);
         showMsg('🎴 山引き！2枚引いた！');
-        await updateDoc(doc(db, 'abilityMaidGames', id), { [`players.${myId}.hand`]: newHand2, deck: game.deck.slice(2) });
+        await updateDoc(doc(db, 'abilityMaidGames', id), {
+          [`players.${myId}.hand`]: newHand2,
+          deck: game.deck.slice(2),
+        });
         break;
       case 'reveal':
         setOpponentRevealed(true);
@@ -431,7 +444,9 @@ export default function GamePage() {
   };
 
   const executeAbilityAfterChallenge = async (ability: AbilityType) => {
-    await updateDoc(doc(db, 'abilityMaidGames', id), { abilityChallenge: { ...game.abilityChallenge, resolved: true } });
+    await updateDoc(doc(db, 'abilityMaidGames', id), {
+      abilityChallenge: { ...game.abilityChallenge, resolved: true }
+    });
     await executeAbility(ability);
   };
 
@@ -459,9 +474,10 @@ export default function GamePage() {
     const newMyHand = myPlayer.hand.filter((_, i) => i !== index);
     const newOpponentHand = [...opponent.hand, card];
     const info = card !== 'joker' ? ABILITY_INFO[card as AbilityType] : null;
-    showMsg(`🤝 ${card === 'joker' ? 'ジョーカー' : info?.name ?? card} を相手に渡した！`);
+    showMsg(`🤝 ${card === 'joker' ? 'ジョーカー' : info?.name ?? String(card)} を相手に渡した！`);
     await updateDoc(doc(db, 'abilityMaidGames', id), {
-      [`players.${myId}.hand`]: newMyHand, [`players.${opponentId}.hand`]: newOpponentHand,
+      [`players.${myId}.hand`]: newMyHand,
+      [`players.${opponentId}.hand`]: newOpponentHand,
     });
     setSelectingHandover(false);
   };
@@ -472,8 +488,7 @@ export default function GamePage() {
       <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24, background: '#0a0a1a' }}>
         <div style={{ fontSize: 80 }}>{iWon ? '🎉' : '😢'}</div>
         <div style={{ fontSize: 32, fontWeight: 900, color: '#fff' }}>{iWon ? 'あなたの勝ち！' : 'あなたの負け...'}</div>
-        <button onClick={() => window.location.href = '/'}
-          style={{ marginTop: 24, padding: '14px 32px', borderRadius: 12, border: 'none', background: '#e94560', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
+        <button onClick={() => window.location.href = '/'} style={{ marginTop: 24, padding: '14px 32px', borderRadius: 12, border: 'none', background: '#e94560', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
           ホームに戻る
         </button>
       </div>
@@ -507,8 +522,8 @@ export default function GamePage() {
         <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', zIndex: 150, width: '90%', maxWidth: 420, background: '#1a0a2e', border: '2px solid #9b59b6', borderRadius: 16, padding: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <span style={{ fontSize: 20 }}>{ABILITY_INFO[challenge!.ability]?.icon}</span>
-            <p style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>相手が「{ABILITY_INFO[challenge!.ability]?.name}」を使おうとしています！</p>
-            <span style={{ marginLeft: 'auto', fontSize: 20, color: '#ffd700', fontWeight: 900 }}>{challengeCountdown}</span>
+            <p style={{ fontWeight: 700, fontSize: 14, color: '#fff', flex: 1 }}>相手が「{ABILITY_INFO[challenge!.ability]?.name}」を使おうとしています！</p>
+            <span style={{ fontSize: 20, color: '#ffd700', fontWeight: 900 }}>{challengeCountdown}</span>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             {availableAbilities.includes('reflect') && (
@@ -532,7 +547,7 @@ export default function GamePage() {
         {message && <p style={{ fontSize: 13, color: '#4fc3f7', marginTop: 6, fontWeight: 600 }}>{message}</p>}
       </div>
 
-      {/* 使える能力 */}
+      {/* 使える能力（カウントダウン中も使える） */}
       {isMyTurn && availableAbilities.length > 0 && (
         <div style={{ background: '#111126', border: '1px solid rgba(155,89,182,0.4)', borderRadius: 14, padding: 14 }}>
           <p style={{ fontSize: 12, fontWeight: 700, color: '#9b59b6', marginBottom: 10 }}>⚡ 使える能力（タップで発動）</p>
@@ -577,7 +592,9 @@ export default function GamePage() {
           {game.sealed && <span style={{ fontSize: 11, color: '#4fc3f7' }}>🔒</span>}
           {isOpponentExposed && <span style={{ fontSize: 11, color: '#E53935', fontWeight: 700 }}>💀公開中</span>}
         </div>
-        {isMyTurn && turnPhase === 'draw_opponent' && <p style={{ fontSize: 12, color: '#ffd700', marginBottom: 8 }}>タップして引く 👇</p>}
+        {isMyTurn && turnPhase === 'draw_opponent' && !selectingDecoy && !selectingHandover && (
+          <p style={{ fontSize: 12, color: '#ffd700', marginBottom: 8 }}>タップして引く 👇</p>
+        )}
         <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
           {opponent?.hand?.map((card, i) => {
             const isDecoy = game.decoyIndex === i;
