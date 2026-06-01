@@ -81,6 +81,69 @@ function CardDisplay({ card, faceDown = false, highlighted = false, onClick, bad
             <span style={{ fontSize: 22, lineHeight: 1 }}>🃏</span>
             <span style={{ fontSize: 9, color: '#ffd700', fontWeight: 900, textAlign: 'center' as const }}>JOKER</span>
           </>
+        ) : info ? (
+          <>
+            <span style={{ fontSize: 20, lineHeight: 1, textAlign: 'center' as const }}>{info.icon}</span>
+            <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', textAlign: 'center' as const, lineHeight: 1.3, wordBreak: 'keep-all' as const }}>{info.name}</span>
+            {info.isCurse && (
+              <span style={{ fontSize: 8, color: '#ff6b6b', textAlign: 'center' as const }}>呪い</span>
+            )}
+          </>
+        ) : (
+          <span style={{ fontSize: 16, textAlign: 'center' as const }}>❓</span>
+        )}
+      </div>
+      {badge && (
+        <span style={{ position: 'absolute', top: -8, right: -8, fontSize: 16, pointerEvents: 'none' as const }}>{badge}</span>
+      )}
+    </div>
+  );
+}
+  card?: CardType; faceDown?: boolean; highlighted?: boolean;
+  onClick?: () => void; badge?: string;
+}) {
+  const info = card && card !== 'joker' ? ABILITY_INFO[card as AbilityType] : null;
+  const borderColor = highlighted ? '#ffd700'
+    : faceDown ? 'rgba(255,255,255,0.15)'
+    : card === 'joker' ? '#ffd700'
+    : info?.isCurse ? '#E53935'
+    : info?.isLuck ? '#FFC107'
+    : '#9b59b6';
+  const bg = faceDown ? 'linear-gradient(135deg,#1a1a4e,#0f3460)'
+    : card === 'joker' ? '#3a3a00'
+    : info?.isCurse ? 'rgba(229,57,53,0.15)'
+    : info?.isLuck ? 'rgba(255,193,7,0.08)'
+    : '#2a1a4a';
+
+  return (
+    <div style={{ position: 'relative', flexShrink: 0 }}>
+      <div
+        onClick={onClick}
+        style={{
+          width: 62,
+          height: 84,
+          borderRadius: 12,
+          border: `2px solid ${borderColor}`,
+          background: bg,
+          boxShadow: highlighted ? `0 0 12px ${borderColor}` : 'none',
+          transition: 'box-shadow 0.2s',
+          cursor: onClick ? 'pointer' : 'default',
+          boxSizing: 'border-box' as const,
+          display: 'flex',
+          flexDirection: 'column' as const,
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 3,
+          padding: 4,
+        }}
+      >
+        {faceDown ? (
+          <span style={{ fontSize: 26, lineHeight: 1 }}>🂠</span>
+        ) : card === 'joker' ? (
+          <>
+            <span style={{ fontSize: 22, lineHeight: 1 }}>🃏</span>
+            <span style={{ fontSize: 9, color: '#ffd700', fontWeight: 900, textAlign: 'center' as const }}>JOKER</span>
+          </>
         ) : (
           <>
             <span style={{ fontSize: 20, lineHeight: 1, textAlign: 'center' as const }}>{info?.icon}</span>
