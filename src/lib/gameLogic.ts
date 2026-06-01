@@ -118,7 +118,7 @@ export function checkCondition(
 ): boolean {
   switch (ability) {
     case 'swap':     return opponentHand.length >= myHand.length + 3;
-    case 'disguise': return myHand.includes('joker');
+    case 'handover': return myHand.length > 0;
     case 'decoy':    return opponentHand.length <= 3;
     default:         return true;
   }
