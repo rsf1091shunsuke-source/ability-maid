@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { collection, addDoc, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { db, auth } from '@/lib/firebase';
-import { createDeck, dealInitialHands, removePairs, getEarnedAbilities, shuffle } from '@/lib/gameLogic';
+import { createDeck, dealInitialHands, getEarnedAbilities } from '@/lib/gameLogic';
 
 export default function Home() {
   const router = useRouter();
@@ -12,6 +12,7 @@ export default function Home() {
   const [roomCode, setRoomCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showGuide, setShowGuide] = useState(false);
 
   const handleCreate = async () => {
     if (!name.trim()) { setError('名前を入力してください'); return; }
@@ -20,8 +21,6 @@ export default function Home() {
       const { user } = await signInAnonymously(auth);
       const code = Math.random().toString(36).substring(2, 8).toUpperCase();
       const { hand1, hand2, drawDeck } = dealInitialHands(createDeck());
-      const cleanHand1 = removePairs(hand1);
-      const cleanHand2 = removePairs(hand2);
       const earned1 = getEarnedAbilities(hand1);
       const earned2 = getEarnedAbilities(hand2);
       const gameRef = await addDoc(collection(db, 'abilityMaidGames'), {
@@ -37,16 +36,16 @@ export default function Home() {
         blackoutActive: false,
         reflectActive: null,
         nullifyActive: null,
+        exposeTarget: null,
         players: {
-          [user.uid]: { name: name.trim(), hand: cleanHand1, availableAbilities: earned1 }
+          [user.uid]: { name: name.trim(), hand: hand1, availableAbilities: earned1 }
         },
         playerIds: [user.uid],
         deck: drawDeck,
-        hand2: cleanHand2,
+        hand2,
         hand2Abilities: earned2,
       });
       localStorage.setItem('abilityMaidUid', user.uid);
-      localStorage.setItem('abilityMaidName', name.trim());
       router.push(`/game/${gameRef.id}`);
     } catch { setError('エラーが発生しました'); }
     finally { setLoading(false); }
@@ -77,14 +76,13 @@ export default function Home() {
         hand2Abilities: null,
       });
       localStorage.setItem('abilityMaidUid', user.uid);
-      localStorage.setItem('abilityMaidName', name.trim());
       router.push(`/game/${gameDoc.id}`);
     } catch { setError('エラーが発生しました'); }
     finally { setLoading(false); }
   };
 
   const s = {
-    container: { minHeight: '100dvh', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 32 },
+    container: { minHeight: '100dvh', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 24 },
     title: { fontSize: 32, fontWeight: 900, textAlign: 'center' as const },
     sub: { fontSize: 14, color: 'rgba(255,255,255,0.5)', textAlign: 'center' as const, marginTop: 4 },
     card: { background: '#16213e', borderRadius: 16, padding: 24, width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column' as const, gap: 12 },
@@ -99,21 +97,56 @@ export default function Home() {
         <div style={s.title}>⚡ Ability Maid</div>
         <div style={s.sub}>能力カードで戦うリアルタイムババ抜き</div>
       </div>
+
       <div style={s.card}>
         <p style={{ fontWeight: 700, fontSize: 18 }}>名前を入力</p>
         <input style={s.input} placeholder="あなたの名前" value={name} onChange={e => setName(e.target.value)} />
+
         <p style={{ fontWeight: 700, fontSize: 16, marginTop: 8 }}>部屋を作る</p>
         <button style={{ ...s.btn, background: '#e94560', color: '#fff' }} onClick={handleCreate} disabled={loading}>
           {loading ? '作成中...' : '新しい部屋を作る'}
         </button>
+
         <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>── または ──</div>
+
         <p style={{ fontWeight: 700, fontSize: 16 }}>部屋に参加する</p>
         <input style={s.input} placeholder="ルームコード（例：ABC123）" value={roomCode} onChange={e => setRoomCode(e.target.value)} />
         <button style={{ ...s.btn, background: '#0f3460', color: '#fff', border: '1px solid rgba(255,255,255,0.3)' }} onClick={handleJoin} disabled={loading}>
           {loading ? '参加中...' : '参加する'}
         </button>
+
         {error && <p style={s.error}>{error}</p>}
       </div>
+
+      {/* 能力一覧ボタン */}
+      <button onClick={() => setShowGuide(!showGuide)}
+        style={{ ...s.btn, maxWidth: 360, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff' }}>
+        📖 能力カード一覧を見る
+      </button>
+
+      {/* 能力一覧 */}
+      {showGuide && (
+        <div style={{ width: '100%', maxWidth: 360, background: '#16213e', borderRadius: 16, padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <p style={{ fontWeight: 900, fontSize: 16, marginBottom: 4 }}>⚡ 能力カード一覧</p>
+          {Object.entries(require('@/lib/gameLogic').ABILITY_INFO).map(([key, info]: [string, any]) => (
+            <div key={key} style={{
+              padding: '10px 14px', borderRadius: 10,
+              background: info.isCurse ? 'rgba(229,57,53,0.1)' : info.isLuck ? 'rgba(255,193,7,0.1)' : 'rgba(155,89,182,0.1)',
+              border: `1px solid ${info.isCurse ? 'rgba(229,57,53,0.3)' : info.isLuck ? 'rgba(255,193,7,0.3)' : 'rgba(155,89,182,0.3)'}`,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <span style={{ fontSize: 20 }}>{info.icon}</span>
+                <span style={{ fontWeight: 700, fontSize: 14 }}>{info.name}</span>
+                {info.isCurse && <span style={{ fontSize: 10, background: 'rgba(229,57,53,0.3)', padding: '2px 6px', borderRadius: 4, color: '#ff6b6b' }}>呪い</span>}
+                {info.isLuck && <span style={{ fontSize: 10, background: 'rgba(255,193,7,0.3)', padding: '2px 6px', borderRadius: 4, color: '#FFC107' }}>運</span>}
+                {info.condition && <span style={{ fontSize: 10, background: 'rgba(74,144,226,0.3)', padding: '2px 6px', borderRadius: 4, color: '#4A90E2' }}>条件付き</span>}
+              </div>
+              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{info.desc}</p>
+              {info.condition && <p style={{ fontSize: 11, color: '#4A90E2', marginTop: 4 }}>🔒 {info.condition}</p>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
